@@ -1,0 +1,42 @@
+---
+- name: Make sure we have a 'wheel' group
+  become: yes
+  group:
+    name: wheel
+    state: present
+  tags:
+    - users
+
+- name: Allow wheel group to have passwordless sudo
+  become: yes
+  lineinfile:
+    dest: /etc/sudoers
+    state: present
+    regexp: '^%wheel'
+    line: '%wheel ALL=(ALL) NOPASSWD: ALL'
+  tags:
+    - users
+
+- name: Create user account
+  become: yes
+  user:
+    name: "{{ item.user }}"
+    shell: "/bin/bash"
+    groups: "users,wheel"
+    system: yes
+    state: present
+    append: yes
+  with_items:
+    - "{{ account_names }}"
+  tags:
+    - users
+
+- name: Add ssh key for users
+  authorized_key:
+    user: "{{ item.user }}"
+    key: "{{ item.key }}"
+    state: present
+  with_items:
+    - "{{ account_names }}"
+  tags:
+    - users

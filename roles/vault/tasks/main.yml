@@ -1,0 +1,63 @@
+---
+- name: Set up Vault folder
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "ec2-user"
+  become: yes
+  with_items:
+    - /opt/vault
+  tags:
+    - vault
+
+- name: Copy over files
+  copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+  with_items:
+    - { src: ./file/docker-compose.yml, dest: /opt/vault/docker-compose.yml }
+    - { src: ./file/Dockerfile.consul, dest: /opt/vault/Dockerfile.consul }
+    - { src: ./file/Dockerfile.vault, dest: /opt/vault/Dockerfile.vault }
+    - { src: ./file/consul.config.json, dest: /opt/vault/consul.config.json }
+    - { src: ./file/default.policy.hcl, dest: /opt/vault/default.policy.hcl }
+    - { src: ./file/vault.config.json, dest: /opt/vault/vault.config.json }
+    - { src: ./file/Makefile, dest: /opt/vault/Makefile }
+  tags:
+    - vault
+
+- name: Tear down existing services
+  docker_compose:
+    project_src: /opt/vault
+    state: absent
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  tags:
+    - vault
+
+- name: Create and start service
+  docker_compose:
+    project_src: /opt/vault
+    build: true
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  tags:
+    - vault
+
+- name: Provision Vault
+  make:
+    chdir: /opt/vault
+    target: provision
+  become: yes
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  tags:
+    - vault
+
+- name: Open firewalld port
+  firewalld:
+    port: 8200/tcp
+    permanent: yes
+    state: enabled
+  become: yes
+  tags:
+    - vault

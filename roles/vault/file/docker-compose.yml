@@ -1,0 +1,56 @@
+version: "3.7"
+services:
+  vault:
+    container_name: vault
+    build:
+      context: .
+      dockerfile: Dockerfile.vault
+    ports:
+      - 8200:8200
+    volumes:
+      - vault-config:/vault/config
+      - vault-policies:/vault/policies
+      - vault-data:/vault/data
+      - vault-logs:/vault/logs
+    environment:
+      - VAULT_ADDR=http://127.0.0.1:8200
+      - VAULT_API_ADDR=http://127.0.0.1:8200
+    command: server -config=/vault/config/config.json
+    cap_add:
+      - IPC_LOCK
+
+  consul:
+    container_name: consul
+    build:
+      context: .
+      dockerfile: Dockerfile.consul
+    ports:
+      - 8500:8500
+    command: agent -server -bind 0.0.0.0 -client 0.0.0.0 -bootstrap-expect 1 -config-file=/consul/config/config.json
+    volumes:
+      - consul-data:/consul/data
+
+  consul-worker:
+    container_name: consul-worker
+    build:
+      context: .
+      dockerfile: Dockerfile.consul
+    command: agent -server -join consul -config-file=/consul/config/config.json
+    volumes:
+      - consul-worker-data:/consul/data
+    depends_on:
+      - consul
+
+volumes:
+  vault-config:
+    driver: local
+  vault-policies:
+    driver: local
+  vault-data:
+    driver: local
+  vault-logs:
+    driver: local
+  consul-data:
+    driver: local
+  consul-worker-data:
+    driver: local
